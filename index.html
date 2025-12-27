@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#0b0b10" />
+  <title>番茄闹钟</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <div class="bgGlow"></div>
+
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="title">番茄闹钟</div>
+        <div class="subtitle" id="todayText">—</div>
+      </div>
+
+      <div class="actions">
+        <button class="pill" id="notifyBtn">通知：未授权</button>
+        <button class="pill" id="themeBtn">外观：自动</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="card timerCard">
+        <div class="dialArea">
+          <svg class="dial" viewBox="0 0 260 260" aria-label="计时表盘">
+            <circle class="dialRing" cx="130" cy="130" r="102"></circle>
+            <g id="ticks"></g>
+            <circle id="progressArc" class="progressArc" cx="130" cy="130" r="92"></circle>
+
+            <g id="handGroup" transform="rotate(0 130 130)">
+              <line class="hand" x1="130" y1="130" x2="130" y2="54"></line>
+              <circle class="handCap" cx="130" cy="130" r="6"></circle>
+            </g>
+
+            <circle class="centerDot" cx="130" cy="130" r="2.2"></circle>
+          </svg>
+
+          <div class="readout">
+            <div class="time" id="timeMain">00:00</div>
+            <div class="status" id="timeSub">未开始</div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <div class="row">
+            <div class="label">时长</div>
+            <div class="field">
+              <div class="chips" id="presetChips"></div>
+              <div class="customRow">
+                <input id="customMinutes" class="input" type="number" min="1" max="999" placeholder="自定义分钟（例如 37）" />
+                <button id="applyCustom" class="btn ghost">应用</button>
+              </div>
+              <div class="meta" id="durationMeta">当前：25 分钟</div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="label">备注</div>
+            <div class="field">
+              <textarea id="noteInput" class="textarea" rows="2" maxlength="200" placeholder="本次计时要做什么（最多 200 字）"></textarea>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="label">控制</div>
+            <div class="field">
+              <div class="btnRow">
+                <button id="startBtn" class="btn primary">开始</button>
+                <button id="pauseBtn" class="btn">暂停</button>
+                <button id="resetBtn" class="btn danger">重置</button>
+              </div>
+              <div class="meta" id="localMeta">本机记录：本地保存（不跨设备同步）</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card logCard">
+        <div class="cardHeader">
+          <div class="cardTitle">今日行动事项</div>
+          <div class="cardActions">
+            <button id="exportTodayBtn" class="pill">导出今日</button>
+            <button id="openArchiveBtn" class="pill">历史便签</button>
+          </div>
+        </div>
+
+        <div id="todayList" class="logList"></div>
+
+        <div class="hint">
+          年底合并：两台电脑分别“导出全部(JSON)” → 在任意一台电脑打开本页 → “导入合并(JSON)”选择多个文件 → 自动去重合并并保存。
+        </div>
+
+        <div class="mergeBox">
+          <div class="mergeTitle">数据导入/合并</div>
+          <div class="mergeRow">
+            <button id="exportAllJsonBtn" class="pill">导出全部(JSON)</button>
+            <button id="exportAllCsvBtn" class="pill">导出全部(CSV)</button>
+          </div>
+          <div class="mergeRow">
+            <input id="importFiles" class="file" type="file" accept=".json,application/json" multiple />
+            <button id="importMergeBtn" class="pill">导入合并(JSON)</button>
+          </div>
+          <div class="meta" id="mergeMeta">—</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modalBackdrop hidden" id="archiveBackdrop">
+    <div class="modal modalWide">
+      <div class="modalHeader">
+        <div class="modalTitle">历史便签</div>
+        <div class="modalActions">
+          <button id="closeArchiveBtn" class="pill">关闭</button>
+        </div>
+      </div>
+      <div class="modalBody" id="archiveBody"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

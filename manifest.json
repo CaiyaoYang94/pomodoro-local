@@ -1,0 +1,9 @@
+{
+  "name": "番茄闹钟",
+  "short_name": "番茄闹钟",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0b0b10",
+  "theme_color": "#0b0b10",
+  "icons": []
+}
