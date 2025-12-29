@@ -274,3 +274,56 @@ body{
 }
 .sheetTitle{ font-weight:900; margin-bottom: 6px; }
 .sheetText{ white-space: pre-wrap; font-size: 13px; line-height: 1.5; color: var(--text); }
+
+/* 汇总区 */
+.summaryBox{
+  border:1px solid var(--stroke);
+  background: rgba(255,255,255,.04);
+  border-radius: 18px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.summaryTitle{
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+.summaryList{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.summaryItem{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  border:1px solid var(--stroke);
+  background: rgba(255,255,255,.04);
+  border-radius: 14px;
+  padding: 8px 10px;
+}
+.summaryName{
+  font-size: 13px;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 70%;
+}
+.summaryTime{
+  font-size: 12px;
+  color: var(--sub);
+  font-weight: 900;
+}
+
+/* 单条记录的用时徽标 */
+.durationBadge{
+  font-size: 12px;
+  color: var(--sub);
+  font-weight: 900;
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,.04);
+  padding: 6px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
