@@ -9,7 +9,10 @@ function ymd(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.
 function cnWeekday(d) { return ["星期日","星期一","星期二","星期三","星期四","星期五","星期六"][d.getDay()]; }
 function formatMMSS(sec) { const m = Math.floor(sec / 60); const s = Math.max(0, sec % 60); return `${pad2(m)}:${pad2(s)}`; }
 function formatHM(d) { return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; }
-function escapeHtml(s){ return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
+
+function escapeHtml(s){
+  return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+}
 
 function downloadText(filename, text) {
   const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
@@ -24,6 +27,40 @@ function downloadText(filename, text) {
 
 async function readFileText(file){
   return await file.text();
+}
+
+/* ========= 用时与汇总 ========= */
+function durMs(startMs, endMs){
+  return Math.max(0, (endMs ?? 0) - (startMs ?? 0));
+}
+
+// 显示为 “1小时05分” 或 “25分”
+// 这里按分钟四舍五入（你的记录精确到分更直观）
+function formatDurMs(ms){
+  const totalMin = Math.round(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h <= 0) return `${m}分`;
+  return `${h}小时${pad2(m)}分`;
+}
+
+// 备注归一化：去首尾空格、压缩多空格；空则归为（无备注）
+function normNote(note){
+  const s = (note || "").trim().replace(/\s+/g, " ");
+  return s.length ? s : "（无备注）";
+}
+
+// items: 记录数组（含 start_ms/end_ms/note）
+function summarizeByNote(items){
+  const map = new Map();
+  for (const it of items){
+    const name = normNote(it.note);
+    const ms = durMs(it.start_ms, it.end_ms);
+    map.set(name, (map.get(name) || 0) + ms);
+  }
+  return Array.from(map.entries())
+    .map(([name, totalMs]) => ({ name, totalMs }))
+    .sort((a,b) => b.totalMs - a.totalMs);
 }
 
 /* ========= 本地存储 Key ========= */
@@ -135,16 +172,30 @@ function saveRecords(arr){
   localStorage.setItem(K.RECORDS, JSON.stringify(arr));
 }
 
+/* Markdown：包含“汇总 + 明细(含用时)” */
 function buildMarkdownForDay(dateKey, items){
   const d = new Date(dateKey + "T00:00:00");
   let out = `# 行动事项 · ${dateKey}（${cnWeekday(d)}）\n\n`;
+
   if (!items.length) return out + "（无记录）\n";
+
+  out += "## 汇总（按事项）\n\n";
+  const sum = summarizeByNote(items);
+  for (const s of sum){
+    out += `- **${s.name}**：${formatDurMs(s.totalMs)}\n`;
+  }
+  out += "\n";
+
+  out += "## 明细\n\n";
   items.forEach((it, idx) => {
-    out += `${idx+1}. **${it.start_hm} - ${it.end_hm}**  ${it.note?.trim() ? it.note.trim() : "（无备注）"}\n`;
+    const used = formatDurMs(durMs(it.start_ms, it.end_ms));
+    out += `${idx+1}. **${it.start_hm} - ${it.end_hm}**（用时 ${used}）  ${normNote(it.note)}\n`;
   });
+
   return out;
 }
 
+/* CSV */
 function buildCsv(records){
   const header = ["id","device_id","date_key","weekday","start_ms","end_ms","start_hm","end_hm","note"];
   const esc = (v) => `"${String(v ?? "").replaceAll('"','""')}"`;
@@ -232,9 +283,9 @@ function paint(remainSec){
   }
   if (timerState.running){
     const end = new Date(timerState.endAtMs);
-    timeSub.textContent = `结束于 ${formatHM(end)} · ${timerState.note?.trim() ? timerState.note.trim() : "无备注"}`;
+    timeSub.textContent = `结束于 ${formatHM(end)} · ${normNote(timerState.note)}`;
   } else {
-    timeSub.textContent = `已暂停 · ${timerState.note?.trim() ? timerState.note.trim() : "无备注"}`;
+    timeSub.textContent = `已暂停 · ${normNote(timerState.note)}`;
   }
 }
 
@@ -362,25 +413,49 @@ applyCustom.addEventListener("click", () => {
 /* ========= 今日/历史渲染 ========= */
 function renderToday(){
   const todayKey = ymd(new Date());
-  const records = loadRecords().filter(r => r.date_key === todayKey).sort((a,b)=>a.start_ms-b.start_ms);
+  const records = loadRecords()
+    .filter(r => r.date_key === todayKey)
+    .sort((a,b)=>a.start_ms-b.start_ms);
 
   const d = new Date();
   todayText.textContent = `${todayKey}（${cnWeekday(d)}）`;
 
   if (!records.length){
-    todayList.innerHTML = `<div class="hint">暂无记录。完成一次计时后会自动记录“起止时间 + 备注”。</div>`;
+    todayList.innerHTML = `<div class="hint">暂无记录。完成一次计时后会自动记录“起止时间 + 备注 + 用时”。</div>`;
     return;
   }
 
-  todayList.innerHTML = records.map(r => `
-    <div class="logItem">
-      <div class="logTop">
-        <div class="logTime">${r.start_hm} - ${r.end_hm}</div>
-        <div class="logMeta">${r.date_key} ${r.weekday}</div>
+  // 汇总区
+  const sum = summarizeByNote(records);
+  const summaryHtml = `
+    <div class="summaryBox">
+      <div class="summaryTitle">今日汇总（按事项）</div>
+      <div class="summaryList">
+        ${sum.map(s => `
+          <div class="summaryItem">
+            <div class="summaryName" title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</div>
+            <div class="summaryTime">${formatDurMs(s.totalMs)}</div>
+          </div>
+        `).join("")}
       </div>
-      <div class="logNote">${escapeHtml(r.note || "")}</div>
     </div>
-  `).join("");
+  `;
+
+  // 明细区：每条显示用时
+  const detailHtml = records.map(r => {
+    const used = formatDurMs(durMs(r.start_ms, r.end_ms));
+    return `
+      <div class="logItem">
+        <div class="logTop">
+          <div class="logTime">${r.start_hm} - ${r.end_hm}</div>
+          <div class="durationBadge">用时 ${used}</div>
+        </div>
+        <div class="logNote">${escapeHtml(normNote(r.note))}</div>
+      </div>
+    `;
+  }).join("");
+
+  todayList.innerHTML = summaryHtml + detailHtml;
 }
 
 function openArchive(){
@@ -401,9 +476,26 @@ function openArchive(){
   archiveBody.innerHTML = keys.map(k => {
     const day = byDate.get(k).slice().sort((a,b)=>a.start_ms-b.start_ms);
     const md = buildMarkdownForDay(k, day);
+
+    const sum = summarizeByNote(day);
+    const sumHtml = `
+      <div class="summaryBox" style="margin:10px 0 12px;">
+        <div class="summaryTitle">当日汇总（按事项）</div>
+        <div class="summaryList">
+          ${sum.map(s => `
+            <div class="summaryItem">
+              <div class="summaryName" title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</div>
+              <div class="summaryTime">${formatDurMs(s.totalMs)}</div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+
     return `
       <div class="sheet">
         <div class="sheetTitle">${k}（${cnWeekday(new Date(k+"T00:00:00"))}）</div>
+        ${sumHtml}
         <div class="sheetText">${escapeHtml(md)}</div>
         <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
           <button class="pill" data-export="${k}">下载该日文档</button>
@@ -433,7 +525,7 @@ function exportToday(){
 function exportAllJson(){
   const records = loadRecords().slice().sort((a,b)=>a.start_ms-b.start_ms);
   const payload = {
-    schema: "pomodoro_local_v1",
+    schema: "pomodoro_local_v2",
     exported_at_ms: nowMs(),
     device_id: getDeviceId(),
     records
@@ -540,7 +632,6 @@ async function boot(){
   if (timerState && timerState.running){
     const remain = Math.max(0, Math.ceil((timerState.endAtMs - nowMs())/1000));
     if (remain <= 0) {
-      // 过期：结算
       finishTimer();
     } else {
       startTick();
